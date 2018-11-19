@@ -1,0 +1,14 @@
+* {
+    box-sizing: border-box;
+}
+html {
+    background-color: #4e5ba3;
+}
+.pagination-link.is-current {
+    background-color: #3273dc;
+    border-color: #3273dc;
+}
+.pagination-previous, .pagination-next, .pagination-link, .pagination-ellipsis {
+    background-color: #fff;
+    border-color: #fff;
+}

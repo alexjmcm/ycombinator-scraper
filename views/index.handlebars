@@ -1,0 +1,167 @@
+<nav class="navbar">
+    <div class="navbar-brand">
+        <a class="navbar-item" href="https://news.ycombinator.com/">
+                <span>Y Combinator Scraper App</span>
+        </a>
+    </div>
+
+    <div class="navbar-menu">
+        <div class="navbar-start">
+            <!-- navbar items -->
+        </div>
+
+        <div class="navbar-end">
+            <!-- navbar items -->
+            <div class="navbar-item">
+                <div class="field is-grouped">
+                    <p class="control">
+                        <a class="button is-info" href="/scrape">
+                            <span>Scrape the Y Combinator News Site</span>
+                        </a>
+                    </p>
+                    <p class="control">
+                        <a class="button is-danger" id="resetBtn">
+                            <span>Reset the Database</span>
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="container is-fluid is-light">
+    <br/>
+    <nav class="pagination is-centered" role="navigation" aria-label="pagination">
+        <ul class="pagination-list" id="pagination-list"></ul>
+    </nav>
+    <br/>
+    <div id="content"></div>
+</div>
+
+<div class="modal" id="commentModal">
+    <div class="modal-background"></div>
+    <div class="modal-content">
+        <!-- Any other Bulma elements you want -->
+        <div class="box">
+            <div class="title is-4" id="modal-title"></div>
+            <div class="field">
+                <label class="label"> Please Insert Your Name:</label>
+                <div class="control">
+                    <input class="input" type="text" id="nameInput" placeholder="Insert name here...">
+                </div>
+            </div>
+            <div class="field">
+                <label class="label">Please Insert Your Comment:</label>
+                <div class="control">
+                    <textarea class="textarea" id="commentInput" placeholder="Insert comment here..."></textarea>
+                </div>
+            </div>
+            
+            <div class="field is-grouped">
+                <div class="control">
+                    <button class="button is-info" id="submitBtn">
+                        <span>Submit A Comment</span>
+                    </button>
+                </div>
+                <div class="control">
+                    <button class="button is-danger" id="cancelBtn">
+                        <span>Cancel</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <button class="modal-close is-large" aria-label="close"></button>
+</div>
+
+<script>
+$(document).ready(() => {
+    // Modal handlers
+    $(".modal-close, .modal-background, #cancelBtn").on("click", function(){
+        $("#commentModal").removeClass("is-active");
+    });
+    // Modal submit button handler
+    $("#submitBtn").on("click", function(){
+        let submission = {
+            name: $("#nameInput").val(),
+            comment: $("#commentInput").val()
+        };
+        $.post("/comment/"+$(this).attr("post_id"), submission, (result) => {
+            // $("#commentModal").removeClass("is-active");
+            location.reload();
+        });
+    });
+    // Comment button handler
+    $("body").on("click", ".commentBtn", function(){
+        $("#nameInput").val("");
+        $("#commentInput").val("");
+        $("#modal-title").text($(this).attr("title"));
+        $("#submitBtn").attr("post_id", $(this).attr("id"));
+        $("#commentModal").addClass("is-active");
+    });
+    // Comment delete button handler
+    $("body").on("click", ".delete", (event) => {
+        $.ajax({
+            url: "/comment/"+$(event.currentTarget).attr("comment_id"),
+            method: "DELETE"
+        }).done(function() {
+            $(event.currentTarget).closest("article").remove();
+        })
+    });
+    // Reset button handler
+    $("#resetBtn").on("click", function(){
+        let reset = confirm("Alert! The Y-Combinator database will be reset! Press OK to Confirm");
+        if (reset){
+            $.ajax({
+                url: "/reset",
+                method: "DELETE"
+            }).done(function() {
+                alert("The Y-Combinator Database has been reset!");
+                window.location.href = "/";
+            });
+        }
+    });
+    // Get JSON and populate page
+    $.get("/posts?p="+{{page}})
+        .done(results => {
+            if (results.total===0){
+                let box = $("<div>").addClass("box");
+                box.append($('<h1>').addClass('title').text('No posts in the Y-Combinator database so far, click "Scrape the Y Combinator News Site" button to find the posts!'));
+                $("#content").append(box);
+                return;
+            }
+            // Print pagination elements
+            let numPages = results.pages;
+            let pageNum = parseInt('{{page}}');
+            if (pageNum > numPages){
+                window.location.href = "/400";
+                return;
+            }
+            for (let i=0; i<numPages; i++){
+                let isCurrent = ((i+1)===pageNum) ? true:false;
+                let paginateLink = createPaginateLink(i+1, isCurrent);
+                $('#pagination-list').append(paginateLink);
+            }
+            // Print posts and their comments
+            let offset = (pageNum-1)*10;
+            for (let i = 0; i < results.docs.length; i++) {
+                let post = results.docs[i];
+                let box = createPostElem(i+offset, post);
+                if (post.comments.length > 0){
+                    box.append("<br><br>");
+                    for (let j=0; j<post.comments.length; j++){
+                        let comment = post.comments[j];
+                        let commentBox = createComment(comment);
+                        box.append(commentBox);
+                    }
+                }
+                $("#content").append(box);
+            }
+        })
+        .fail(() => {
+            console.log("Error retrieving posts!");
+        });
+});
+</script>
